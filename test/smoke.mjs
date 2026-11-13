@@ -180,6 +180,8 @@ ok('state env has profile/port', Boolean(state.body.env.profile) && state.body.e
 const diag = await request('GET', '/diagnose')
 ok('diagnose returns 6 checks', diag.body.counts.total === 6, diag.body.counts)
 ok('pass/fail/warn counts', diag.body.counts.pass === 1 && diag.body.counts.fail === 3 && diag.body.counts.warn === 2, diag.body.counts)
+ok('panel counts split actionable from reference', diag.body.counts.actionable === 5 && diag.body.counts.reference === 0, diag.body.counts)
+ok('panel summary counts actionable only', /^5 项需要处理/.test(diag.body.summary || ''), diag.body.summary)
 ok('findings carry code/fixability', diag.body.findings.every((f) => f.code && f.fixability && f.severity))
 const pkgFinding = diag.body.findings.find((f) => f.detail.includes('file missing: package.json'))
 ok('missing package.json is handoff', pkgFinding && pkgFinding.fixability === 'handoff', pkgFinding)

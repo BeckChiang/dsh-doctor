@@ -179,7 +179,7 @@ function mountOnCtx(ctx, config) {
       handle.unref?.()
     })
     const report = await Promise.race([service.diagnose(at.profile, at.port), timer]).finally(() => clearTimeout(handle))
-    const { findings, counts } = normalizeReport(report, { originPort: originPort(ctx), declaredDeps: declaredDeps(at.profile) })
+    const { findings, counts, summary } = normalizeReport(report, { originPort: originPort(ctx), declaredDeps: declaredDeps(at.profile) })
     const annotated = findings.map((finding) => ({ ...finding, ignored: store.isIgnored(finding.code) }))
     cache = {
       at: Date.now(),
@@ -187,6 +187,7 @@ function mountOnCtx(ctx, config) {
       report,
       findings: annotated,
       counts,
+      summary,
     }
     return cache
   }
@@ -243,7 +244,7 @@ function mountOnCtx(ctx, config) {
           ? {
               ranAt: new Date(cache.at).toISOString(),
               counts: cache.counts,
-              summary: cache.report?.summary ?? '',
+              summary: cache.summary ?? '',
               stale: cache.target.profile !== target().profile || cache.target.port !== target().port,
             }
           : null,
@@ -264,7 +265,8 @@ function mountOnCtx(ctx, config) {
         port: at.port,
         dshHome: at.dshHome,
         counts: fresh.counts,
-        summary: fresh.report?.summary ?? '',
+        summary: fresh.summary ?? '',
+        engineSummary: fresh.report?.summary ?? '',
         findings: fresh.findings,
         ladder: store.ladder(),
         attempts: store.attempts(),

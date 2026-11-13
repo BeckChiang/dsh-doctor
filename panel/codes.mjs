@@ -235,6 +235,12 @@ export function normalizeReport(report, context = {}) {
   const visible = findings.filter((f) => f.status !== 'ok')
   const order = { error: 0, warn: 1, info: 2 }
   visible.sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9) || a.code.localeCompare(b.code))
+  // The panel reclassifies several upstream warnings as reference-only (own port,
+  // inventory lines, bundles shipped inside the app). Counting upstream's raw
+  // fail/warn here would claim "9 blocking issues" while the list shows three,
+  // so the counts and the summary are derived from the findings the panel shows.
+  const actionable = visible.filter((f) => f.severity !== 'info').length
+  const reference = visible.length - actionable
   return {
     findings: visible,
     counts: {
@@ -242,7 +248,13 @@ export function normalizeReport(report, context = {}) {
       pass: checks.filter((c) => c.status === 'ok').length,
       fail: checks.filter((c) => c.status === 'fail').length,
       warn: checks.filter((c) => c.status === 'warn').length,
+      actionable,
+      reference,
     },
+    summary:
+      actionable === 0
+        ? `没有需要处理的问题，其余 ${reference} 项为参考信息。`
+        : `${actionable} 项需要处理${reference > 0 ? `，另有 ${reference} 项仅供参考` : ''}。`,
   }
 }
 

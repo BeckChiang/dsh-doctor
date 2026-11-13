@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 This repository is a fork of [`jorinyang/dsh-doctor`](https://github.com/jorinyang/dsh-doctor).
 Entries up to `0.3.2` describe the upstream engine; `0.4.0` onwards describe this fork.
 
+## [0.4.4] - 2026-11-13
+
+### Fixed
+
+- The overview kept upstream's raw counts and summary ("9 blocking issue(s)"),
+  while the list below showed only the findings the panel considers actionable.
+  Counts and the summary line are now derived from the panel's own findings
+  (`需处理` / `仅参考`), so the badge row and the list agree.
+
 ## [0.4.3] - 2026-11-13
 
 ### Fixed
