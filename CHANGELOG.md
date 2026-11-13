@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 This repository is a fork of [`jorinyang/dsh-doctor`](https://github.com/jorinyang/dsh-doctor).
 Entries up to `0.3.2` describe the upstream engine; `0.4.0` onwards describe this fork.
 
+## [0.4.2] - 2026-11-13
+
+### Fixed
+
+- The client bundle registered itself under `dsh-doctor` while its boot entry
+  id is the package name `@beckchiang/dsh-doctor`. The loader matches bundles to
+  entries by that id, so the settings section was never mounted and the page
+  showed no "体检" entry. The bundle now registers under the package name.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed

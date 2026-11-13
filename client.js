@@ -11,7 +11,7 @@
 //   policy   — the ladder switches (auto safe / confirm deps / confirm full)
 
 window.__ModuleLoader__.load({
-  id: 'dsh-doctor',
+  id: '@beckchiang/dsh-doctor',
   factory(require) {
     const React = require('react')
     const h = React.createElement
