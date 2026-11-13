@@ -199,6 +199,22 @@ ok('health probe on own port is info', ownHealth.severity === 'info', ownHealth)
 const skippedDisk = normalizeCheck({ kind: 'disk', status: 'warn', detail: 'disk space check skipped' }, ctxPort)
 ok('skipped disk check is info, not low disk', skippedDisk.code === 'disk.skipped' && skippedDisk.severity === 'info', skippedDisk)
 
+// 3c. inventory lines, app-provided bundles and desktop-managed profiles are info
+const inventory = normalizeCheck({ kind: 'deps', status: 'warn', detail: 'declared bundles: dsh-base, dsh-web-app' }, ctxPort)
+ok('declared bundle inventory is info', inventory.code === 'deps.declared-summary' && inventory.severity === 'info', inventory)
+const declaredDeps = ['@local/cost-meter']
+const appBundle = normalizeCheck({ kind: 'deps', status: 'fail', detail: 'bundle missing: @deepseek-ai/dsh-experimental-auto-review' }, { ...ctxPort, declaredDeps })
+ok('app-provided bundle is info', appBundle.severity === 'info' && appBundle.fixability === 'info', appBundle)
+const declaredBundle = normalizeCheck({ kind: 'deps', status: 'fail', detail: 'bundle missing: @local/cost-meter' }, { ...ctxPort, declaredDeps })
+ok('declared bundle still needs deps scope', declaredBundle.fixability === 'confirm' && declaredBundle.severity === 'error', declaredBundle)
+const thirdParty = normalizeCheck({ kind: 'deps', status: 'fail', detail: 'bundle missing: some-third-party-plugin' }, { ...ctxPort, declaredDeps })
+ok('undeclared third-party bundle stays a failure', thirdParty.fixability === 'confirm' && thirdParty.severity === 'error', thirdParty)
+const desktopManaged = normalizeCheck(
+  { kind: 'mount', status: 'fail', detail: '--dump-config failed: error: profile "desktop" is managed exclusively by the Electron application' },
+  ctxPort,
+)
+ok('desktop-managed dump is info', desktopManaged.code === 'mount.desktop-managed' && desktopManaged.severity === 'info', desktopManaged)
+
 // 4. ladder persists
 const ladder = await request('POST', '/ladder', { patch: { showInfo: true } })
 ok('ladder patch persists', ladder.body.ok && ladder.body.ladder.showInfo === true, ladder.body.ladder)

@@ -120,6 +120,50 @@ function byKind(kind, detail, context = {}) {
     }
     return { code: 'disk.low', title: '磁盘剩余空间不足', fixability: HANDOFF }
   }
+  if (kind === 'deps') {
+    // "declared bundles: a, b, c" is the inventory line doctor always emits as
+    // warn; each bundle is then checked on its own, so the list itself is not a
+    // problem.
+    if (/^declared bundles:/i.test(detail)) {
+      return {
+        code: 'deps.declared-summary',
+        title: '已声明的 bundle 清单',
+        fixability: INFO,
+        severity: 'info',
+        note: '只是一份清单，下面每条 bundle 会单独检查',
+      }
+    }
+    // Bundles that ship inside the DSH installation (`@deepseek-ai/*`) are loaded
+    // from app.asar and never appear in the profile's node_modules. Doctor only
+    // looks at profile/node_modules, so it calls them missing even though the
+    // running app resolves them. Only bundles the profile itself declares as a
+    // dependency can be "missing" in a way `pnpm install` would fix.
+    const missing = /^bundle missing:\s*(\S+)/i.exec(detail)
+    if (missing) {
+      const name = missing[1]
+      const declared = Array.isArray(context.declaredDeps) ? context.declaredDeps : null
+      if (declared && !declared.includes(name) && name.startsWith('@deepseek-ai/')) {
+        return {
+          code: `deps.bundle-missing:${slug(name)}`,
+          title: `bundle 由 DSH 自带：${name}`,
+          fixability: INFO,
+          severity: 'info',
+          note: '它没有写进 profile 的 dependencies：这类 @deepseek-ai/* bundle 随 DSH 安装一起分发（app.asar 内），由应用直接解析；doctor 只查 profile/node_modules，所以报 missing。只有确实要装进 profile 时才需要 pnpm install',
+        }
+      }
+    }
+  }
+  if (kind === 'mount' && /^--dump-config failed/i.test(detail) && /managed exclusively by the Electron application/i.test(detail)) {
+    // The desktop app owns its profile and the CLI refuses to dump it, which says
+    // nothing about the config being broken — the app just loaded it.
+    return {
+      code: 'mount.desktop-managed',
+      title: '该 profile 由桌面应用托管，CLI 拒绝 dump',
+      fixability: INFO,
+      severity: 'info',
+      note: 'dsh --dump-config 对桌面托管的 profile 会直接拒绝，这不是配置错误；应用本身能加载这套配置，才是更强的证据',
+    }
+  }
   return null
 }
 

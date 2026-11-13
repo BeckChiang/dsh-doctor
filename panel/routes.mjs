@@ -22,7 +22,7 @@
 //   POST /api/dsh-doctor/handoff    { code } paste-ready context for an agent
 
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { SCOPES, fixableBy, handoffText, normalizeReport } from './codes.mjs'
@@ -153,6 +153,21 @@ function mountOnCtx(ctx, config) {
     return { profile, port, dshHome: dshHome() }
   }
 
+  // Dependencies the profile itself declares. Doctor reports every bundle that is
+  // not present in profile/node_modules as "missing", including the ones that
+  // ship inside the DSH installation; this list lets the panel tell the two
+  // apart instead of sending the user to `pnpm install` for nothing.
+  const declaredDeps = (profile) => {
+    try {
+      const file = join(dshHome(), 'profiles', profile, 'package.json')
+      if (!existsSync(file)) return null
+      const parsed = JSON.parse(readFileSync(file, 'utf8'))
+      return Object.keys(parsed?.dependencies ?? {})
+    } catch {
+      return null
+    }
+  }
+
   // Last diagnosis, reused by /state, /handoff and the attempt bookkeeping so a
   // page open does not trigger another `dsh --dump-config` (it is slow).
   let cache = null
@@ -164,7 +179,7 @@ function mountOnCtx(ctx, config) {
       handle.unref?.()
     })
     const report = await Promise.race([service.diagnose(at.profile, at.port), timer]).finally(() => clearTimeout(handle))
-    const { findings, counts } = normalizeReport(report, { originPort: originPort(ctx) })
+    const { findings, counts } = normalizeReport(report, { originPort: originPort(ctx), declaredDeps: declaredDeps(at.profile) })
     const annotated = findings.map((finding) => ({ ...finding, ignored: store.isIgnored(finding.code) }))
     cache = {
       at: Date.now(),

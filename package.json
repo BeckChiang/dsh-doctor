@@ -1,7 +1,7 @@
 {
   "name": "@beckchiang/dsh-doctor",
   "description": "DeepSeek Harness diagnostic, repair, and rollback plugin with a settings panel and a five-rung repair ladder. Fork of @jorinyang/dsh-doctor: keeps dsh_doctor / dsh_doctor_fix / dsh_doctor_rollback, the Cordis runtime service and the CLI, and adds a browser-side 体检 panel.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "main": "index.js",
   "types": "index.d.ts",

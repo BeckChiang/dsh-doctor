@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 This repository is a fork of [`jorinyang/dsh-doctor`](https://github.com/jorinyang/dsh-doctor).
 Entries up to `0.3.2` describe the upstream engine; `0.4.0` onwards describe this fork.
 
+## [0.4.3] - 2026-11-13
+
+### Fixed
+
+- `declared bundles: ...` is the inventory line doctor always emits as `warn`;
+  it is now reported as info. It lists what will be checked, not a fault.
+- Bundles that ship inside the DSH installation (`@deepseek-ai/*`, resolved from
+  `app.asar`) are no longer reported as missing. Doctor only looks at
+  `profile/node_modules`, so it called them missing even though the running app
+  resolves them; the panel now compares against `dependencies` in the profile's
+  `package.json` and keeps a real failure for anything the profile actually
+  declares.
+- `--dump-config failed: profile "desktop" is managed exclusively by the
+  Electron application` is now `mount.desktop-managed` (info): the desktop app
+  owns that profile and the CLI refuses to dump it, which says nothing about the
+  configuration being broken.
+
 ## [0.4.2] - 2026-11-13
 
 ### Fixed
