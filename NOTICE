@@ -1,0 +1,51 @@
+dsh-doctor (fork of @jorinyang/dsh-doctor)
+==========================================
+
+This repository is a fork of:
+
+    dsh-doctor
+    https://github.com/jorinyang/dsh-doctor
+    Copyright (c) the dsh-doctor authors
+    Licensed under the MIT License (see LICENSE)
+
+Upstream baseline taken for this fork:
+
+    version  0.3.2
+    commit   79418687 ("docs: polish README with badges, mermaid diagram,
+              and feature highlights; bump to 0.3.2")
+
+The upstream LICENSE file is kept verbatim, including its copyright lines,
+as required by the MIT License. All upstream source files under src/ and the
+prebuilt output under lib/ are unchanged in this fork.
+
+Maintained fork
+---------------
+
+    https://github.com/BeckChiang/dsh-doctor
+    Package name: @beckchiang/dsh-doctor (upstream publishes @jorinyang/dsh-doctor)
+    Maintained by BeckChiang
+
+Changes added by this fork
+--------------------------
+
+  index.js                entry point: runs the upstream plugin, then mounts the panel
+  index.d.ts              type declarations for the entry point
+  panel/codes.mjs         finding normalisation: stable code + fixability + scope
+  panel/store.mjs         ladder policy, ignore list, attempt log, handoff dedupe
+  panel/jobs.mjs          asynchronous repair jobs (deps/full must not block)
+  panel/routes.mjs        HTTP surface under /api/dsh-doctor
+  client.js               settings panel (settings.section, id "dsh-doctor")
+  icon.svg                panel icon
+  NOTICE                  this file
+  CHANGELOG.md            fork change log
+  DESIGN.md               design document for the panel and repair ladder
+  test/smoke.mjs          smoke test for the panel routes (node test/smoke.mjs)
+
+Interaction inspiration
+-----------------------
+
+The settings-panel interaction (a status area, a findings list and a fix
+ledger) was inspired by fuyu-technology/dsh-auto-repair-ui, which is licensed
+under Apache-2.0 and requires attribution notices to be preserved. No source
+code from that project is copied or derived here; only the interaction shape
+was used as a reference. See DESIGN.md section 10 and README for details.

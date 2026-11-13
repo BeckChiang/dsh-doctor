@@ -6,16 +6,21 @@
 
 **崩溃诊断 · 可逆修复 · 一键回滚 · 运行时自愈**
 
-[![npm](https://img.shields.io/npm/v/@jorinyang/dsh-doctor?style=for-the-badge&color=2563eb&label=npm)](https://www.npmjs.com/package/@jorinyang/dsh-doctor)
-[![downloads](https://img.shields.io/npm/dm/@jorinyang/dsh-doctor?style=for-the-badge&color=16a34a&label=下载量)](https://www.npmjs.com/package/@jorinyang/dsh-doctor)
-[![license](https://img.shields.io/npm/l/@jorinyang/dsh-doctor?style=for-the-badge&color=dc2626&label=MIT)](LICENSE)
-[![stars](https://img.shields.io/github/stars/jorinyang/dsh-doctor?style=for-the-badge&color=f59e0b&label=Star)](https://github.com/jorinyang/dsh-doctor)
+[![repo](https://img.shields.io/badge/GitHub-BeckChiang%2Fdsh--doctor-2563eb?style=for-the-badge)](https://github.com/BeckChiang/dsh-doctor)
+[![fork of](https://img.shields.io/badge/fork%20of-jorinyang%2Fdsh--doctor-6b7280?style=for-the-badge)](https://github.com/jorinyang/dsh-doctor)
+[![license](https://img.shields.io/badge/license-MIT-dc2626?style=for-the-badge)](LICENSE)
 
 **English** · [README.en.md](./README.en.md)
 
 </div>
 
 ---
+
+> **本仓库是 [@jorinyang/dsh-doctor](https://github.com/jorinyang/dsh-doctor) 的 fork**（MIT，上游 0.3.2 / `79418687`）。
+> 上游的诊断引擎、3 个模型工具、Cordis 运行时服务与 CLI **原样保留**；本 fork 只在 `lib/index.js` 之上加了一层
+> **「体检」设置面板 + 五级修复阶梯**（见下文「体检面板」一章，设计与边界见 [DESIGN.md](./DESIGN.md)）。
+> npm 上的 `@jorinyang/dsh-doctor` 仍是上游包，本 fork 的包名是 `@beckchiang/dsh-doctor`，尚未发布到 npm。
+> 上游变更请走 `git fetch upstream && git merge upstream/main`。
 
 > **崩溃报错，无法启动？**
 >
@@ -80,6 +85,76 @@ dsh-doctor rollback --id <id>    # 回滚指定日志
 ### 🌍 跨平台，开箱即用
 
 安装后自动注册到系统 PATH，Windows / macOS / Linux / fish 全覆盖，无需手动配置。
+
+---
+
+## 🩺 体检面板（本 fork 新增）
+
+上游是一个「工具 + CLI + 服务」；本 fork 在同一份引擎之上补了一层**设置页面板**，把「诊断 → 修复 → 回滚 → 交给人/AI」串成一条看得见的路径。面板不重算任何结论：它调用的是本插件自己 `ctx.provide('dsh-doctor')` 提供的同一个 `DoctorService`。
+
+### 五级修复阶梯
+
+| 阶梯 | 做什么 | 默认 |
+|------|--------|------|
+| **L0 观察** | 只读 `diagnose`，一条 finding 一个稳定 `code` | 总是可用 |
+| **L1 自修** | 只跑 `scope=safe`（建缺失目录/文件、修 allowBuilds 占位符），每步进 journal 可回滚 | 需要一次点击；`autoSafe` 开关默认关 |
+| **L2 分级修复** | `deps`（+ `pnpm install --fix-lockfile`）/ `full`（+ 停残留进程） | 两档都必须显式确认，`full` 不可逆 |
+| **L3 交给 AI** | 只生成一段可粘贴的结构化上下文（code / 证据 / profile / 已尝试过什么），**不自动新建会话、不自动投喂** | `handoff` 开关默认开，同一条 30 分钟内去重 |
+| **L4 人工/忽略** | 忽略某个 `code`，下次体检不再打扰 | 随时可撤销 |
+
+每条 finding 都带一个**诚实**的可修性判定：
+
+- 🟢 `auto` — `safe` 档真的会改它（建目录、建空 `cordis.patch.yml`、改 allowBuilds 占位符）
+- 🟡 `confirm` — 只有更高档能碰（`bundle missing` / `link dependency broken` 要 `deps`，端口占用要 `full`）
+- 🔵 `handoff` — 引擎根本不改（例如 `package.json` 缺失、`--dump-config` 失败），只给交人/AI 的按钮
+- ⚪ `info` — 不是问题（`declared bundles` 这类每次都会出现的清单）
+
+面板不会给「修不了的东西」装一个修复按钮，这是本 fork 最重要的一条设计约束。
+
+### 面板四块
+
+1. **状态条** — 上次体检时间、目标 profile / 端口、健康计数，以及「本插件服务是否就绪」
+2. **结论列表** — 每条 finding：分级色、`code`、证据原文、doctor 的 fixHint、可修性标记，以及修复 / 交给 AI / 忽略
+3. **修复账本** — 所有 journal，逐条展开 undo 步骤；「需手动补偿」单独标红（`deps` 改 lockfile、`full` 杀进程都属于这类——**不会**显示成「已回滚」）
+4. **阶梯策略** — 四个开关（`autoSafe` / `confirmDeps` / `confirmFull` / `handoff`）+ 是否显示 `info` 项
+
+### 面板接口
+
+面板挂在设置页（`settings.section`，`id: dsh-doctor`，`label: 体检`），HTTP 面在 `/api/dsh-doctor/*`，全部要求请求头 `x-dsh-doctor: 1`：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/dsh-doctor/state` | 服务可用性、目标 profile/port、阶梯策略、journal 摘要、正在跑的任务 |
+| GET | `/api/dsh-doctor/diagnose` | 现场体检，返回归一化后的 findings + 计数 |
+| POST | `/api/dsh-doctor/fix` | `{ scope, confirm?, codes? }` → `202 { jobId }`（`deps/full` 缺 `confirm` 返回 400，已有任务返回 409） |
+| GET | `/api/dsh-doctor/job?id=` | 任务进度（`pnpm install` 可能跑几分钟，所以是异步任务 + 轮询） |
+| GET | `/api/dsh-doctor/journals` · `/journal?id=` | 修复账本 / 单条 journal 的 undo 明细 |
+| POST | `/api/dsh-doctor/rollback` | `{ id }`，LIFO 回滚；`manual` 步骤只统计不谎报 |
+| GET/POST | `/api/dsh-doctor/ladder` | 读取 / 保存阶梯策略 |
+| POST | `/api/dsh-doctor/ignore` | `{ code, ignored }` |
+| POST | `/api/dsh-doctor/handoff` | `{ code }` → 可粘贴文本（30 分钟内同一条去重） |
+
+策略、忽略列表、尝试记录与去重账本落在 `<DSH_HOME>/storages/dsh-doctor/state.json`（原子写：临时文件 + rename）。
+
+Web 服务不是硬依赖：`inject` 仍然只有 `tools`，面板通过 `ctx.inject(['webServer'], …)` 惰性挂载——没有 web server 的 headless 运行时照样有工具、服务和 CLI，只是没有面板。
+
+### 装上这个 fork
+
+```bash
+# ① 克隆（或直接用 git 地址安装）
+git clone https://github.com/BeckChiang/dsh-doctor.git
+
+# ② 把目录装进某个 profile（在 DSH 里用「设置 → 插件 → 从本地目录安装」等价）
+dsh plugin --profile web add /绝对路径/dsh-doctor
+```
+
+安装后重启 DSH，设置里会多出「体检」一节。
+
+### 已知边界
+
+- `full` 档给不出 PID 列表：上游的 `stopDshProcesses()` 不返回进程明细，所以面板只能提示「不可逆、会停残留进程」，不能列 PID。要列 PID 得改引擎，那属于上游的事。
+- 引擎没有暴露稳定的 check 标识，`code` 是从 `kind` + `detail` 文案推导的稳定 slug；上游改文案会让对应 finding 落到「未识别 → 仅交人/AI」，不会误判成可自动修复。
+- 面板只做编排，不做模型选择 / API Key / 客户端扫描——那些是上游之外的野心，本 fork 刻意不碰。
 
 ---
 

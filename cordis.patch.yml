@@ -1,4 +1,9 @@
 # dsh-doctor bundle patch: inserts this plugin into a profile's layer stack.
+#
+# Fork note: this file ships with BeckChiang/dsh-doctor, a fork of
+# jorinyang/dsh-doctor (MIT). The plugin entry id stays `dsh-doctor` because the
+# Cordis service, the model tools and the event names are all `dsh-doctor`;
+# only the package name changed (the npm scope belongs to the upstream author).
 - insert:
     - id: dsh-doctor
-      name: '@jorinyang/dsh-doctor'
+      name: '@beckchiang/dsh-doctor'

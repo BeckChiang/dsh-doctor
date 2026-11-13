@@ -6,14 +6,21 @@
 
 **Diagnose · Reversible Repair · One-click Rollback · Runtime Self-healing**
 
-[![npm](https://img.shields.io/npm/v/@jorinyang/dsh-doctor?style=for-the-badge&color=2563eb&label=npm)](https://www.npmjs.com/package/@jorinyang/dsh-doctor)
-[![downloads](https://img.shields.io/npm/dm/@jorinyang/dsh-doctor?style=for-the-badge&color=16a34a&label=downloads)](https://www.npmjs.com/package/@jorinyang/dsh-doctor)
-[![license](https://img.shields.io/npm/l/@jorinyang/dsh-doctor?style=for-the-badge&color=dc2626&label=MIT)](LICENSE)
-[![stars](https://img.shields.io/github/stars/jorinyang/dsh-doctor?style=for-the-badge&color=f59e0b&label=Star)](https://github.com/jorinyang/dsh-doctor)
+[![repo](https://img.shields.io/badge/GitHub-BeckChiang%2Fdsh--doctor-2563eb?style=for-the-badge)](https://github.com/BeckChiang/dsh-doctor)
+[![fork of](https://img.shields.io/badge/fork%20of-jorinyang%2Fdsh--doctor-6b7280?style=for-the-badge)](https://github.com/jorinyang/dsh-doctor)
+[![license](https://img.shields.io/badge/license-MIT-dc2626?style=for-the-badge)](LICENSE)
 
 **中文** · [README.md](./README.md)
 
 </div>
+
+---
+
+> **This repository is a fork of [@jorinyang/dsh-doctor](https://github.com/jorinyang/dsh-doctor)** (MIT, upstream 0.3.2 / `79418687`).
+> The engine, the three model tools, the Cordis runtime service and the CLI are kept as-is. The fork adds one layer on top of
+> `lib/index.js`: a **settings panel ("体检" / check-up) with a five-rung repair ladder** (see "Check-up panel" below and
+> [DESIGN.md](./DESIGN.md)). The npm package `@jorinyang/dsh-doctor` is still the upstream one; this fork is published as
+> `@beckchiang/dsh-doctor` and is not on npm yet.
 
 ---
 
@@ -80,6 +87,63 @@ Not just stop-and-fix. dsh-doctor wires into Cordis's native runtime:
 ### 🌍 Cross-platform, zero config
 
 Auto-registers to system PATH on install — Windows / macOS / Linux / fish.
+
+---
+
+## 🩺 Check-up panel (added by this fork)
+
+The upstream package is tools + CLI + a runtime service. This fork puts a **settings panel** on top of the
+same engine, so "diagnose → repair → roll back → hand off" is one visible path. The panel never re-derives
+anything: it calls the very `DoctorService` this plugin provides as `dsh-doctor`.
+
+### Five-rung ladder
+
+| Rung | What happens | Default |
+|------|--------------|---------|
+| **L0 observe** | read-only `diagnose`; every finding gets a stable `code` | always on |
+| **L1 self-fix** | `scope=safe` only (create missing dirs/files, fix the allowBuilds placeholder), every step journaled | one click; `autoSafe` is off |
+| **L2 graded repair** | `deps` (+ `pnpm install --fix-lockfile`) / `full` (+ stop leftover processes) | both need explicit confirmation; `full` is irreversible |
+| **L3 hand off to an agent** | produce paste-ready structured context (code / evidence / profile / what was tried) — **never** opens or feeds a session | `handoff` on, deduped per code for 30 min |
+| **L4 manual / ignore** | ignore a `code` until you un-ignore it | reversible anytime |
+
+Each finding carries an honest fixability verdict: 🟢 `auto` (safe really mutates it), 🟡 `confirm` (only a higher scope
+touches it), 🔵 `handoff` (the engine does not touch it at all — e.g. a missing `package.json`), ⚪ `info` (not a problem).
+The panel never offers a "fix" button for something the engine cannot fix.
+
+### Panel sections
+
+1. **Status bar** — last run, target profile/port, health counts, whether the service is ready
+2. **Findings** — severity colour, `code`, verbatim evidence, upstream `fixHint`, fixability badge, and fix / hand off / ignore
+3. **Ledger** — every journal with its undo steps; "needs manual compensation" is marked separately (a lockfile change is
+   never reported as "rolled back")
+4. **Ladder policy** — `autoSafe` / `confirmDeps` / `confirmFull` / `handoff` switches and whether `info` findings show
+
+### HTTP surface
+
+Mounted under `/api/dsh-doctor/*` (panel header `x-dsh-doctor: 1` required):
+`state`, `diagnose`, `fix` (202 jobId), `job?id=`, `journals`, `journal?id=`, `rollback`, `ladder` (GET/POST),
+`ignore`, `handoff`. Repair runs as a one-at-a-time background job because `pnpm install` can take minutes.
+State lives in `<DSH_HOME>/storages/dsh-doctor/state.json` (atomic temp-file + rename).
+
+The web server stays optional: `inject` is still just `tools`, and the panel mounts through
+`ctx.inject(['webServer'], …)`. A headless runtime keeps the tools, the service and the CLI — just no panel.
+
+### Install this fork
+
+```bash
+git clone https://github.com/BeckChiang/dsh-doctor.git
+dsh plugin --profile web add /absolute/path/to/dsh-doctor
+```
+
+Restart DSH and a "体检" section appears in Settings.
+
+### Known limits
+
+- `full` cannot list PIDs: upstream `stopDshProcesses()` returns no process details, so the panel can only warn that
+  processes will be stopped.
+- Upstream exposes no stable check ids, so `code` is derived from `kind` + `detail` wording. If upstream rewords a
+  check, the finding degrades to "unrecognised → handoff", never to "auto-fixable".
+- The panel is orchestration only: no model picker, no API keys, no client scanning.
 
 ---
 
