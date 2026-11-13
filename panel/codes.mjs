@@ -80,10 +80,46 @@ function severityOf(status) {
 }
 
 // Port / health / disk are decided by kind and status, not by detail text.
-function byKind(kind) {
-  if (kind === 'port') return { code: 'port.in-use', title: '目标端口被占用', fixability: CONFIRM, suggestedScope: 'full', note: 'full 会终止残留进程，不可逆；确认前请核对 PID 与命令行' }
-  if (kind === 'health') return { code: 'health.no-http', title: '该端口上没有响应 HTTP 的 DSH', fixability: INFO, note: '面板本身就是从这个服务器取数的；出现这条通常是 profile / port 填错了' }
-  if (kind === 'disk') return { code: 'disk.low', title: '磁盘剩余空间不足', fixability: HANDOFF }
+// `context.originPort` is the port of the server serving this panel: when the
+// diagnosis targets that same port, "port in use" and "no HTTP 200" are just
+// descriptors of a running instance, not problems, so they are downgraded to
+// info instead of warning the user about their own server.
+function mentionsPort(detail, port) {
+  if (!port) return false
+  return detail.includes(`port ${port} `) || detail.endsWith(`port ${port}`)
+}
+
+function byKind(kind, detail, context = {}) {
+  if (kind === 'port') {
+    if (mentionsPort(detail, context.originPort)) {
+      return {
+        code: 'port.in-use',
+        title: '目标端口由当前 DSH 占用',
+        fixability: INFO,
+        severity: 'info',
+        note: '面板正是从这个端口取数的，属于预期状态；只有当端口上还挂着残留进程、需要清理时才用 full 档',
+      }
+    }
+    return { code: 'port.in-use', title: '目标端口被占用', fixability: CONFIRM, suggestedScope: 'full', note: 'full 会终止残留进程，不可逆；确认前请核对 PID 与命令行' }
+  }
+  if (kind === 'health') {
+    if (mentionsPort(detail, context.originPort)) {
+      return {
+        code: 'health.no-http',
+        title: '健康探测没从当前端口拿到 200',
+        fixability: INFO,
+        severity: 'info',
+        note: '面板正在从该端口取数，说明服务其实可达；上游的健康探测直接请求根路径，重定向或鉴权会让它拿不到 200，属探测方式的差异',
+      }
+    }
+    return { code: 'health.no-http', title: '该端口上没有响应 HTTP 的 DSH', fixability: INFO, note: '面板本身就是从这个服务器取数的；出现这条通常是 profile / port 填错了' }
+  }
+  if (kind === 'disk') {
+    if (/skipped/i.test(detail)) {
+      return { code: 'disk.skipped', title: '磁盘检查被跳过', fixability: INFO, severity: 'info', note: '上游在拿不到磁盘信息时会跳过这条检查，不代表空间不足' }
+    }
+    return { code: 'disk.low', title: '磁盘剩余空间不足', fixability: HANDOFF }
+  }
   return null
 }
 
@@ -92,18 +128,18 @@ function byKind(kind) {
  * @param {{kind:string,status:string,detail:string,fixHint?:string}} check
  * @returns {{code:string,kind:string,status:string,severity:string,title:string,detail:string,fixHint?:string,fixability:string,suggestedScope?:string,note?:string}}
  */
-export function normalizeCheck(check) {
+export function normalizeCheck(check, context = {}) {
   const kind = String(check?.kind ?? 'other')
   const status = String(check?.status ?? 'warn')
   const detail = String(check?.detail ?? '')
 
-  const kindHit = byKind(kind)
+  const kindHit = byKind(kind, detail, context)
   if (kindHit) {
     return {
       code: kindHit.code,
       kind,
       status,
-      severity: severityOf(status),
+      severity: kindHit.severity ?? severityOf(status),
       title: kindHit.title,
       detail,
       fixHint: check?.fixHint,
@@ -149,9 +185,9 @@ export function normalizeCheck(check) {
  * Healthy checks are counted, not listed (except informational ones, which the
  * panel may fold away).
  */
-export function normalizeReport(report) {
+export function normalizeReport(report, context = {}) {
   const checks = Array.isArray(report?.checks) ? report.checks : []
-  const findings = checks.map(normalizeCheck)
+  const findings = checks.map((check) => normalizeCheck(check, context))
   const visible = findings.filter((f) => f.status !== 'ok')
   const order = { error: 0, warn: 1, info: 2 }
   visible.sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9) || a.code.localeCompare(b.code))

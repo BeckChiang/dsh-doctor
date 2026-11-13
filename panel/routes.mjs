@@ -164,7 +164,7 @@ function mountOnCtx(ctx, config) {
       handle.unref?.()
     })
     const report = await Promise.race([service.diagnose(at.profile, at.port), timer]).finally(() => clearTimeout(handle))
-    const { findings, counts } = normalizeReport(report)
+    const { findings, counts } = normalizeReport(report, { originPort: originPort(ctx) })
     const annotated = findings.map((finding) => ({ ...finding, ignored: store.isIgnored(finding.code) }))
     cache = {
       at: Date.now(),

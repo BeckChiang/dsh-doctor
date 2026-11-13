@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 This repository is a fork of [`jorinyang/dsh-doctor`](https://github.com/jorinyang/dsh-doctor).
 Entries up to `0.3.2` describe the upstream engine; `0.4.0` onwards describe this fork.
 
+## [0.4.1] - 2026-11-13
+
+### Fixed
+
+- `disk space check skipped` was classified as `disk.low` ("low disk space");
+  it is now `disk.skipped` and reported as info, since a skipped check is not
+  evidence of a full disk.
+- When the diagnosis targets the port this panel is served from, "port in use"
+  and "no HTTP 200" describe a running instance rather than a problem: both are
+  now downgraded to info with an explanation, instead of warning the user about
+  their own server. Other ports keep the warning and the `confirm` fixability.
+- Smoke test grew from 24 to 28 assertions covering both cases.
+
 ## [0.4.0] - 2026-11-13
 
 Fork baseline: upstream `0.3.2` (commit `79418687`). The engine under `src/`

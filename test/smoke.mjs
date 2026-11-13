@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { apply } from '../index.js'
+import { normalizeCheck } from '../panel/codes.mjs'
 
 const home = mkdtempSync(join(tmpdir(), 'doctor-ui-smoke-'))
 process.env.DSH_HOME = home
@@ -186,6 +187,17 @@ const bundleFinding = diag.body.findings.find((f) => f.detail.includes('bundle m
 ok('missing bundle needs deps', bundleFinding && bundleFinding.fixability === 'confirm' && bundleFinding.suggestedScope === 'deps', bundleFinding)
 const placeholder = diag.body.findings.find((f) => f.detail.includes('allowBuilds'))
 ok('allowBuilds placeholder is auto', placeholder && placeholder.fixability === 'auto', placeholder)
+
+// 3b. origin-port false positives are downgraded to info
+const ctxPort = { originPort: 50544 }
+const ownPort = normalizeCheck({ kind: 'port', status: 'warn', detail: 'port 50544 is in use' }, ctxPort)
+ok('own port is info, not a warning', ownPort.severity === 'info' && ownPort.fixability === 'info', ownPort)
+const otherPort = normalizeCheck({ kind: 'port', status: 'warn', detail: 'port 3080 is in use' }, ctxPort)
+ok('other port stays a warning', otherPort.severity === 'warn' && otherPort.fixability === 'confirm', otherPort)
+const ownHealth = normalizeCheck({ kind: 'health', status: 'warn', detail: 'no HTTP 200 on port 50544' }, ctxPort)
+ok('health probe on own port is info', ownHealth.severity === 'info', ownHealth)
+const skippedDisk = normalizeCheck({ kind: 'disk', status: 'warn', detail: 'disk space check skipped' }, ctxPort)
+ok('skipped disk check is info, not low disk', skippedDisk.code === 'disk.skipped' && skippedDisk.severity === 'info', skippedDisk)
 
 // 4. ladder persists
 const ladder = await request('POST', '/ladder', { patch: { showInfo: true } })
